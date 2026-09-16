@@ -43,6 +43,7 @@
 html, body { min-height: 100%; }
 body {
   margin: 0;
+  padding-top: var(--topbar-h);
   background: var(--glow), var(--page);
   background-attachment: fixed;
   color: var(--navy);
@@ -60,7 +61,7 @@ p { margin: 0; }
 
 /* ---------- Top bar ---------- */
 .topbar {
-  position: sticky; top: 0; z-index: 20;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 30;
   height: var(--topbar-h);
   display: flex; align-items: center; gap: 14px;
   padding: 0 22px;
@@ -127,17 +128,20 @@ p { margin: 0; }
 
 /* ---------- Layout ---------- */
 .layout {
+  --side-w: 300px; --drawer-w: 380px;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 0px;
+  grid-template-columns: minmax(0, 1fr);
+  padding-left: var(--side-w);
   min-height: calc(100vh - var(--topbar-h));
-  transition: grid-template-columns .2s ease;
+  transition: padding .2s ease;
 }
-.layout.drawer-open { grid-template-columns: 300px minmax(0, 1fr) 380px; }
+.layout.drawer-open { padding-right: var(--drawer-w); }
 
+/* The menu is pinned to the viewport: it can never scroll off screen. */
 .sidebar {
-  position: sticky; top: var(--topbar-h);
-  height: calc(100vh - var(--topbar-h));
-  overflow-y: auto;
+  position: fixed; top: var(--topbar-h); left: 0; bottom: 0; z-index: 20;
+  width: var(--side-w);
+  overflow-y: auto; overscroll-behavior: contain;
   border-right: 1px solid var(--line);
   padding: 22px 16px 32px;
   background: var(--white);
@@ -424,13 +428,12 @@ p { margin: 0; }
 
 /* ---------- Drawer ---------- */
 .drawer {
-  position: sticky; top: var(--topbar-h);
-  height: calc(100vh - var(--topbar-h));
-  overflow-y: auto;
+  position: fixed; top: var(--topbar-h); right: 0; bottom: 0; z-index: 20;
+  overflow-y: auto; overscroll-behavior: contain;
   background: var(--white);
-  width: 0; opacity: 0; pointer-events: none; transition: opacity .15s ease;
+  width: var(--drawer-w); opacity: 0; pointer-events: none; transform: translateX(12px); transition: opacity .15s ease, transform .15s ease;
 }
-.layout.drawer-open .drawer { width: auto; opacity: 1; pointer-events: auto; border-left: 1px solid var(--line); }
+.layout.drawer-open .drawer { opacity: 1; pointer-events: auto; transform: none; border-left: 1px solid var(--line); }
 .drawer-inner { padding: 20px 18px 40px; }
 .drawer-tabs { display: flex; gap: 4px; margin-bottom: 14px; background: var(--page); padding: 4px; border-radius: var(--pill); }
 .drawer-tabs .btn { flex: 1; border: 0; background: transparent; color: var(--slate); box-shadow: none; }
@@ -479,17 +482,20 @@ p { margin: 0; }
   .phases { display: none; }
 }
 @media (max-width: 1200px) {
-  .layout, .layout.drawer-open { grid-template-columns: 260px minmax(0, 1fr) 0; }
-  .layout.drawer-open .drawer { position: fixed; right: 0; top: var(--topbar-h); width: 360px; max-width: 92vw; z-index: 30; box-shadow: -20px 0 40px rgba(0,0,0,.25); }
+  .layout { --side-w: 260px; }
+  .layout.drawer-open { padding-right: 0; }
+  .drawer { width: 360px; max-width: 92vw; z-index: 30; box-shadow: -20px 0 40px rgba(0,0,0,.25); }
 }
 @media (max-width: 860px) {
-  .topbar { height: auto; flex-wrap: wrap; padding: 10px 16px; gap: 10px; }
+  /* Phones: header scrolls with a taller wrapped bar, menu sits above the content. */
+  .topbar { position: sticky; height: auto; flex-wrap: wrap; padding: 10px 16px; gap: 10px; }
+  body { padding-top: 0; }
   .brand img { width: 120px; }
   .brand-sub { display: none; }
   .timer-wrap { width: 100%; justify-content: space-between; flex-wrap: wrap; }
-  .layout, .layout.drawer-open { grid-template-columns: minmax(0, 1fr); }
-  .layout.drawer-open .drawer { position: fixed; inset: 0; top: 0; width: 100%; max-width: 100%; height: 100vh; z-index: 40; }
-  .sidebar { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+  .layout, .layout.drawer-open { padding-left: 0; padding-right: 0; }
+  .drawer { inset: 0; top: 0; width: 100%; max-width: 100%; z-index: 40; }
+  .sidebar { position: static; width: auto; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   .stage { padding: 24px 16px 100px; }
   .stage-title { font-size: 24px; }
   .btn { white-space: normal; }
