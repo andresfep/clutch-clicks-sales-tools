@@ -66,7 +66,8 @@ Everything autosaves to the browser (`localStorage`), so a refresh mid-call lose
 | File | Purpose |
 | --- | --- |
 | `index.html` | Page shell |
-| `css/styles.css` | Styling, dark theme, responsive layout |
+| `css/styles.css` | ClutchClicks brand system (Poppins, red/navy, pill buttons, cards), responsive layout |
+| `assets/logo.png` | Logo, pulled from the app mockup |
 | `js/script-content.js` | **All script copy and structure.** Edit this to change what reps say. |
 | `js/app.js` | State, section/checklist logic, detours, ROI math, timer, rendering |
 
@@ -93,4 +94,4 @@ Pricing lives in `CC_PRICING` at the top of the same file.
   writes the call summary to notes, and applies tags that fire the automations
   (`send-recap` vs `showed-no-email`, `special-grandfathered`, `no-show`).
 - Per-rep login / call history (today each browser holds one call at a time).
-- Brand colours and logo.
+
