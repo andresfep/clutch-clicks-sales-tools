@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clutch Clicks — Growth Plan Call</title>
+  <meta name="description" content="Live, dynamic sales call script for Clutch Clicks growth plan calls. Straight-line framework with an out-of-order checklist, ROI math and post-call logging." />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-name">Clutch Clicks</span>
+      <span class="brand-sub">Growth Plan Call</span>
+    </div>
+
+    <div class="calltype" role="group" aria-label="Call type">
+      <button class="calltype-btn" data-action="callType" data-value="initial">Initial Call</button>
+      <button class="calltype-btn" data-action="callType" data-value="followup">Follow-Up</button>
+    </div>
+
+    <nav class="phases" id="phases" aria-label="Call phases"></nav>
+
+    <div class="timer-wrap">
+      <div class="timer">
+        <div class="timer-total" id="timerTotal">00:00</div>
+        <div class="timer-stage" id="timerStage"></div>
+      </div>
+      <button class="btn ghost" id="timerToggle" data-action="timerToggle">Start</button>
+      <button class="btn ghost icon" data-action="timerReset" title="Reset the clock only" aria-label="Reset timer">↺</button>
+      <button class="btn ghost drawer-btn" data-action="drawer" data-value="numbers">Numbers</button>
+      <button class="btn ghost drawer-btn" data-action="drawer" data-value="notes">Notes</button>
+      <button class="btn danger-ghost" data-action="newCall" title="Clear everything and start a fresh call">New call</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar" aria-label="Call checklist"></aside>
+    <main class="stage" id="stage"></main>
+    <aside class="drawer" id="drawer" aria-label="Numbers and notes"></aside>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/script-content.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
