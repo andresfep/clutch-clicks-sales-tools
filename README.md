@@ -20,19 +20,30 @@ Deploy anywhere that hosts static files (Netlify, Vercel, GitHub Pages, GoHighLe
 
 ## What it does
 
-**The 11-stage straight line, as a checklist.** The left sidebar lists every stage with its time
-budget. Any stage can be checked off in any order, so if the prospect asks about missed calls
-during "What questions came up?", the rep teaches Metric 2 right there, checks it off, and lands
-back in the questions stage. The ROI Bridge then only walks through the metrics that are still
-open, and the sidebar always shows what is still **owed before checkout** (Metric 1, 2, 3, the
-money, the GMB diagnosis).
+**Five sections, one page each.** The rep sees the straight line, not eleven steps:
+
+1. **Intro + Discovery** — intro, video check, decision-maker check, "what questions came up?"
+2. **ROI Bridge** — the transition plus Metric 1, 2 and 3 stacked on one page. The three
+   metrics are the checklist inside this section.
+3. **The Money** — the ROI sequence with live math.
+4. **Diagnose the GMB** — the three findings, in order.
+5. **Closing** — transition to checkout, offer, pushbacks, payment and onboarding.
+
+Then **Post-Call** to log the outcome.
+
+**Objections don't break the line.** If a prospect asks about missed calls during discovery, the
+rep hits "Teach Metric 2 now" on that question (or the red **Objection?** button from anywhere),
+covers it, marks it covered, and lands back where they were. The ROI Bridge then only asks for
+the metrics still open, its "Done" button stays owed until all three are covered, and the sidebar
+always shows what is **owed before the close** (Metric 1, 2, 3, the money, the GMB diagnosis).
+"Back to the line" jumps to the first section that isn't done yet.
 
 **Call type.** Initial call or follow-up. Follow-up swaps the intro and questions scripts and
-drops the "watch together" stage.
+drops the "watch together" part.
 
 **Numbers that fill the script.** Prospect name, shop, city, trade and the average ticket live in
-the Numbers drawer and appear as highlighted fields inside the word-for-word copy. The money
-stage runs the ROI sequence automatically: their ticket, the halving rule (conservative number),
+the Numbers drawer and appear as highlighted fields inside the word-for-word copy. The Money
+section runs the ROI sequence automatically: their ticket, the halving rule (conservative number),
 one missed call every two weeks, the multiple on $297, and the low-ticket exception under $150.
 
 **Guardrails from the SOP.** Early-yes warning with the exact line to say, the decision-maker
@@ -40,8 +51,8 @@ check that flags the champion track, STOP markers where the rep must wait for th
 three GMB findings in order, the four onboarding things, the offer picker (3-month special,
 monthly + listing, monthly, downsell) and the four pushback scripts.
 
-**Timer.** Overall clock plus time in the current stage against its target. Space bar toggles it
-when no input is focused. `N` opens notes, `M` opens numbers.
+**Timer.** Overall clock plus time in the current section against its target. Space bar toggles
+it when no input is focused. `N` opens notes, `M` numbers, `O` objections.
 
 **Post-call.** Outcome (closed, follow-up, not interested, no-show), follow-up sub-options
 (send recap yes/no, follow-up time, special grandfathered), the GHL pipeline stage, a copyable
@@ -57,11 +68,12 @@ Everything autosaves to the browser (`localStorage`), so a refresh mid-call lose
 | `index.html` | Page shell |
 | `css/styles.css` | Styling, dark theme, responsive layout |
 | `js/script-content.js` | **All script copy and structure.** Edit this to change what reps say. |
-| `js/app.js` | State, checklist logic, ROI math, timer, rendering |
+| `js/app.js` | State, section/checklist logic, detours, ROI math, timer, rendering |
 
 ### Editing the script
 
-`js/script-content.js` is plain data. Each stage has `blocks` of these types:
+`js/script-content.js` is plain data. `CC_SECTIONS` defines the five sections and which SOP
+steps stack inside each. Each step in `CC_STAGES` has `blocks` of these types:
 
 - `say` word-for-word copy (gold bar), `ask` a question to land (green bar)
 - `stop` wait for the answer, `tip` closer tip, `warn` watch-for, `rule` a rule box

@@ -11,8 +11,9 @@
   const LS_KEY = 'cc_growth_call_v1';
   const P = window.CC_PRICING;
   const STAGES = window.CC_STAGES;
-  const PHASES = window.CC_PHASES;
-  const ORDER = PHASES.flatMap(p => p.stages);
+  const SECTIONS = window.CC_SECTIONS;
+  const LINE = window.CC_STRAIGHT_LINE;
+  const ORDER = SECTIONS.flatMap(p => p.steps);
   const REQUIRED = window.CC_CHECKOUT_REQUIRES;
   const METRICS = window.CC_METRICS;
   const LINES = window.CC_LINES;
@@ -23,7 +24,7 @@
   const DEFAULT = () => ({
     v: 1,
     callType: 'initial',
-    stage: 'intro',
+    section: 'discovery',
     done: {},
     na: {},
     prospect: { name: '', shop: '', email: '', phone: '', city: '', trade: 'auto repair' },
@@ -45,8 +46,8 @@
     notes: '',
     returnTo: null,
     timer: { running: false, startedAt: null, acc: 0 },
-    stageTimes: {},
-    stageEnteredAt: null,
+    sectionTimes: {},
+    sectionEnteredAt: null,
     drawer: null,
     drawerTab: 'numbers',
     openAcc: {},
@@ -62,6 +63,7 @@
       const saved = JSON.parse(raw);
       const d = DEFAULT();
       // shallow-merge nested objects so new fields get defaults
+      if (saved.stage && !saved.section) saved.section = (SECTIONS.find(x => x.steps.includes(saved.stage)) || SECTIONS[0]).id;
       return Object.assign(d, saved, {
         prospect: Object.assign(d.prospect, saved.prospect || {}),
         numbers: Object.assign(d.numbers, saved.numbers || {}),
@@ -85,8 +87,12 @@
   const fmtTime = s => { s = Math.max(0, Math.floor(s)); return pad(Math.floor(s / 60)) + ':' + pad(s % 60); };
   const isNA = id => !!S.na[id] || (id === 'watch' && S.callType === 'followup');
   const isDone = id => !!S.done[id];
-  const stageOf = id => STAGES[id];
-  const phaseOf = id => PHASES.find(p => p.stages.includes(id));
+  const sectionById = id => SECTIONS.find(p => p.id === id);
+  const sectionOf = stepId => SECTIONS.find(p => p.steps.includes(stepId));
+  const curSection = () => sectionById(S.section) || SECTIONS[0];
+  const sectionSteps = sec => sec.steps.filter(id => !isNA(id));
+  const sectionDone = sec => sec.id !== 'post' && sectionSteps(sec).every(isDone);
+  const nextLineSection = () => LINE.find(id => !sectionDone(sectionById(id))) || 'post';
   const owed = () => REQUIRED.filter(id => !isDone(id));
   const metricsLeft = () => METRICS.filter(m => !isDone(m.id));
 
@@ -147,91 +153,112 @@
   function totalElapsed() {
     return S.timer.acc + (S.timer.running && S.timer.startedAt ? (Date.now() - S.timer.startedAt) / 1000 : 0);
   }
-  function stageElapsed(id) {
-    let t = S.stageTimes[id] || 0;
-    if (id === S.stage && S.timer.running && S.stageEnteredAt) t += (Date.now() - S.stageEnteredAt) / 1000;
+  function sectionElapsed(id) {
+    let t = S.sectionTimes[id] || 0;
+    if (id === S.section && S.timer.running && S.sectionEnteredAt) t += (Date.now() - S.sectionEnteredAt) / 1000;
     return t;
   }
-  function commitStageTime() {
-    if (S.timer.running && S.stageEnteredAt) {
-      S.stageTimes[S.stage] = (S.stageTimes[S.stage] || 0) + (Date.now() - S.stageEnteredAt) / 1000;
-      S.stageEnteredAt = Date.now();
+  function commitSectionTime() {
+    if (S.timer.running && S.sectionEnteredAt) {
+      S.sectionTimes[S.section] = (S.sectionTimes[S.section] || 0) + (Date.now() - S.sectionEnteredAt) / 1000;
+      S.sectionEnteredAt = Date.now();
     }
   }
   function timerStart() {
     if (S.timer.running) return;
-    S.timer.running = true; S.timer.startedAt = Date.now(); S.stageEnteredAt = Date.now();
+    S.timer.running = true; S.timer.startedAt = Date.now(); S.sectionEnteredAt = Date.now();
     if (!S.startedAtISO) S.startedAtISO = new Date().toISOString();
     save(); renderTimer(); $('#timerToggle').textContent = 'Pause';
   }
   function timerPause() {
     if (!S.timer.running) return;
-    commitStageTime();
-    S.timer.acc = totalElapsed(); S.timer.running = false; S.timer.startedAt = null; S.stageEnteredAt = null;
+    commitSectionTime();
+    S.timer.acc = totalElapsed(); S.timer.running = false; S.timer.startedAt = null; S.sectionEnteredAt = null;
     save(); renderTimer(); $('#timerToggle').textContent = 'Resume';
   }
   function timerReset() {
-    S.timer = { running: false, startedAt: null, acc: 0 }; S.stageTimes = {}; S.stageEnteredAt = null;
+    S.timer = { running: false, startedAt: null, acc: 0 }; S.sectionTimes = {}; S.sectionEnteredAt = null;
     save(); renderTimer(); renderSidebar(); $('#timerToggle').textContent = 'Start';
   }
   function renderTimer() {
     $('#timerTotal').textContent = fmtTime(totalElapsed());
-    const st = stageOf(S.stage);
+    const sec = curSection();
     const el = $('#timerStage');
-    if (st && st.target) {
-      const e = stageElapsed(S.stage);
-      el.textContent = 'stage ' + fmtTime(e) + ' / ' + fmtTime(st.target);
-      el.classList.toggle('over', e > st.target);
+    if (sec.target) {
+      const e = sectionElapsed(sec.id);
+      el.textContent = 'section ' + fmtTime(e) + ' / ' + fmtTime(sec.target);
+      el.classList.toggle('over', e > sec.target);
     } else { el.textContent = ''; el.classList.remove('over'); }
   }
   setInterval(() => {
     if (!S.timer.running) return;
     renderTimer();
     // keep sidebar stage time fresh without a full re-render
-    const row = $(`.step[data-stage="${S.stage}"] .step-time`);
+    const row = $(`.step[data-section="${S.section}"] .step-time`);
     if (row) {
-      const e = stageElapsed(S.stage);
+      const e = sectionElapsed(S.section);
       row.textContent = fmtTime(e);
-      row.classList.toggle('over', stageOf(S.stage).target && e > stageOf(S.stage).target);
+      row.classList.toggle('over', curSection().target && e > curSection().target);
     }
   }, 1000);
 
   /* ------------------------------------------------------------------
      Navigation + checklist
      ------------------------------------------------------------------ */
+  /* goto(sectionId | stepId). A step id lands on its section and scrolls
+     to that part. opts.returnTo = { section, anchor } for detours. */
+  let pendingAnchor = null;
   function goto(id, opts) {
-    if (!STAGES[id]) return;
-    commitStageTime();
-    S.stage = id;
-    if (S.timer.running) S.stageEnteredAt = Date.now();
+    const sec = sectionById(id) || sectionOf(id);
+    if (!sec) return;
+    commitSectionTime();
+    S.section = sec.id;
+    if (S.timer.running) S.sectionEnteredAt = Date.now();
     if (opts && 'returnTo' in opts) S.returnTo = opts.returnTo;
+    pendingAnchor = sectionById(id) ? (opts && opts.anchor) || null : id;
     save(); render();
+    scrollToAnchor();
+  }
+  function scrollToAnchor() {
+    if (pendingAnchor) {
+      const el = document.getElementById('step-' + pendingAnchor);
+      pendingAnchor = null;
+      if (el && sectionSteps(curSection()).length > 1) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  function nextUndone(fromId) {
-    const i = ORDER.indexOf(fromId);
-    for (let j = i + 1; j < ORDER.length; j++) {
-      const id = ORDER[j];
-      if (!isDone(id) && !isNA(id)) return id;
-    }
-    return 'postcall';
+  function nextSection(fromId) {
+    const i = SECTIONS.findIndex(p => p.id === fromId);
+    for (let j = i + 1; j < SECTIONS.length; j++) if (!sectionDone(SECTIONS[j])) return SECTIONS[j].id;
+    return 'post';
   }
   function markDone(id, val) {
     S.done[id] = val === undefined ? !S.done[id] : !!val;
     if (S.done[id]) delete S.na[id];
     save();
   }
-  function completeAndAdvance() {
-    const id = S.stage;
+  function markSectionDone(sec, val) {
+    sec.steps.forEach(id => { if (!isNA(id)) S.done[id] = val; });
+    save();
+  }
+  /* A metric was just covered: go back to the detour origin, or move on. */
+  function metricCovered(id) {
     markDone(id, true);
-    if (STAGES[id].metric && S.returnTo) {
+    if (metricsLeft().length === 0) S.done.bridge = true;
+    if (S.returnTo) {
       const back = S.returnTo; S.returnTo = null;
-      toast(`${STAGES[id].title.split(' — ')[0]} covered — back to questions`);
-      return goto(back);
+      toast(`${METRICS.find(m => m.id === id).short} covered — back to the straight line`);
+      return goto(back.section, { anchor: back.anchor });
     }
-    // Once all three metrics are covered, the bridge is done too.
-    if (STAGES[id].metric && metricsLeft().length === 0) S.done.bridge = true;
-    goto(nextUndone(id));
+    save(); render();
+    const left = metricsLeft();
+    if (left.length) { pendingAnchor = left[0].id; scrollToAnchor(); }
+    else toast('All three metrics covered — on to the money');
+  }
+  function completeAndAdvance() {
+    const sec = curSection();
+    markSectionDone(sec, true);
+    goto(nextSection(sec.id));
   }
 
   /* ------------------------------------------------------------------
@@ -239,11 +266,9 @@
      ------------------------------------------------------------------ */
   function renderTop() {
     document.querySelectorAll('.calltype-btn').forEach(b => b.classList.toggle('active', b.dataset.value === S.callType));
-    const cur = phaseOf(S.stage);
-    $('#phases').innerHTML = PHASES.map(p => {
-      const allDone = p.stages.every(id => isDone(id) || isNA(id));
-      return `<button class="phase-tab ${p.id === cur.id ? 'active' : ''} ${allDone ? 'done' : ''}" data-action="phase" data-value="${p.id}">
-        <span class="pt-label">${p.num} · ${p.label}</span><span class="pt-time">${p.time}</span></button>`;
+    $('#phases').innerHTML = SECTIONS.map(p => {
+      return `<button class="phase-tab ${p.id === S.section ? 'active' : ''} ${sectionDone(p) ? 'done' : ''}" data-action="goto" data-value="${p.id}">
+        <span class="pt-label">${p.id === 'post' ? '' : p.num + ' · '}${p.label}</span><span class="pt-time">${p.time}</span></button>`;
     }).join('');
     $('#timerToggle').textContent = S.timer.running ? 'Pause' : (S.timer.acc > 0 ? 'Resume' : 'Start');
     $('.layout').classList.toggle('drawer-open', !!S.drawer);
@@ -254,28 +279,38 @@
      Render — sidebar checklist
      ------------------------------------------------------------------ */
   function renderSidebar() {
-    const applicable = ORDER.filter(id => !isNA(id) && id !== 'postcall');
-    const doneCount = applicable.filter(isDone).length;
-    const pct = Math.round(doneCount / applicable.length * 100);
+    const line = SECTIONS.filter(p => p.id !== 'post');
+    const doneCount = line.filter(sectionDone).length;
+    const pct = Math.round(doneCount / line.length * 100);
     const o = owed();
-    let html = `<div class="side-title"><span>Call checklist</span><span>${doneCount}/${applicable.length}</span></div>
+    let html = `<div class="side-title"><span>The straight line</span><span>${doneCount}/${line.length}</span></div>
       <div class="side-progress"><span style="width:${pct}%"></span></div>`;
-    html += ORDER.map(id => {
-      const st = STAGES[id];
-      const na = isNA(id), done = isDone(id);
-      const e = stageElapsed(id);
-      const over = st.target && e > st.target;
-      return `<div class="step ${id === S.stage ? 'current' : ''} ${done ? 'done' : ''} ${na ? 'na' : ''} ${REQUIRED.includes(id) ? 'required' : ''}" data-stage="${id}">
-        <button class="step-check" data-action="toggleDone" data-value="${id}" title="${done ? 'Mark not done' : 'Mark done'}">${na ? 'n/a' : '✓'}</button>
-        <button class="step-title" style="all:unset;cursor:pointer" data-action="goto" data-value="${id}">${st.num <= 11 ? st.num + '. ' : ''}${esc(st.title)}<small>${esc(st.time)}${na ? ' · skipped' : ''}</small></button>
+    html += SECTIONS.map(sec => {
+      const done = sectionDone(sec);
+      const e = sectionElapsed(sec.id);
+      const over = sec.target && e > sec.target;
+      let row = `<div class="step ${sec.id === S.section ? 'current' : ''} ${done ? 'done' : ''}" data-section="${sec.id}">
+        <button class="step-check" data-action="toggleSection" data-value="${sec.id}" title="${done ? 'Mark not done' : 'Mark done'}">✓</button>
+        <button class="step-title" style="all:unset;cursor:pointer" data-action="goto" data-value="${sec.id}">${sec.id === 'post' ? '' : sec.num + '. '}${esc(sec.title)}<small>${esc(sec.time)}</small></button>
         <span class="step-time ${over ? 'over' : ''}">${e > 0 ? fmtTime(e) : ''}</span>
       </div>`;
+      if (sec.id === 'bridge') {
+        row += `<div class="substeps">${METRICS.map(m => `
+          <div class="substep ${isDone(m.id) ? 'done' : ''}">
+            <button class="sub-check" data-action="toggleDone" data-value="${m.id}" title="Toggle covered">✓</button>
+            <button class="sub-title" data-action="goto" data-value="${m.id}"><span class="k">${m.short}</span> ${esc(m.label)}</button>
+          </div>`).join('')}</div>`;
+      }
+      return row;
     }).join('');
-    html += `<div class="side-owed ${o.length ? '' : 'clear'}"><h4>Owed before checkout</h4>`;
+    html += `<div class="side-owed ${o.length ? '' : 'clear'}"><h4>Owed before the close</h4>`;
     html += o.length
       ? `<ul>${o.map(id => `<li><button data-action="goto" data-value="${id}">${esc(shortTitle(id))}</button></li>`).join('')}</ul>`
       : `<div class="ok">✓ Everything taught. Clear to close.</div>`;
-    html += `</div>`;
+    html += `</div>
+      <div class="side-line"><h4>Objection came up?</h4>Answer it, then fall back to the straight line — the first section that isn't done yet.
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-action="drawer" data-value="objections">Open objections</button>
+        <button class="btn sm ghost" data-action="backToLine">Back to the line →</button></div></div>`;
     $('#sidebar').innerHTML = html;
   }
   function shortTitle(id) {
@@ -343,10 +378,10 @@
       const w = S.numbers.watched;
       return `<div class="rule-box"><h4>Video rule</h4>
         <div class="choices" style="margin-top:6px">
-          <button class="choice ${w === 'yes' ? 'active' : ''}" data-action="watched" data-value="yes">They watched it → skip Stage 2</button>
-          <button class="choice ${w === 'no' ? 'active' : ''}" data-action="watched" data-value="no">They didn't → play it in Stage 2 (4–6 min)</button>
+          <button class="choice ${w === 'yes' ? 'active' : ''}" data-action="watched" data-value="yes">They watched it → skip the video</button>
+          <button class="choice ${w === 'no' ? 'active' : ''}" data-action="watched" data-value="no">They didn't → play it now (4–6 min)</button>
         </div>
-        ${w === 'yes' ? `<p style="margin-top:10px;color:var(--green);font-size:13px">✓ Stage 2 marked skipped. Go straight to "What questions came up?"</p>` : ''}
+        ${w === 'yes' ? `<p style="margin-top:10px;color:var(--green);font-size:13px">✓ Video skipped. Go straight to "What questions came up?"</p>` : ''}
         ${w === 'no' ? `<p style="margin-top:10px;color:var(--text-2);font-size:13px">Play the file — never perform the video live as a screen-share.</p>` : ''}
       </div>`;
     },
@@ -360,20 +395,20 @@
           <div class="card-title">Others involved</div><div class="card-sub">Champion — get the partner on, or plan the recap</div></button>
       </div>
       ${dm === 'others' ? `<div class="capture" style="margin-top:10px"><label>Who else needs to be comfortable with this?</label><input type="text" data-num="otherDM" value="${esc(S.numbers.otherDM)}" placeholder="Business partner, spouse, co-owner…" /></div>
-        <p class="tip-line" style="margin-top:8px">Ask: "Can they join now?" If not, keep running the demo. Stage 10 will remind you to loop them in before the price.</p>` : ''}
-      ${dm === 'primary' ? `<p class="tip-line" style="margin-top:8px">Set to Primary DM — Stage 10 shows the standard close.</p>` : ''}`;
+        <p class="tip-line" style="margin-top:8px">Ask: "Can they join now?" If not, keep running the demo. Closing will remind you to loop them in before the price.</p>` : ''}
+      ${dm === 'primary' ? `<p class="tip-line" style="margin-top:8px">Set to Primary DM — Closing shows the standard track.</p>` : ''}`;
     },
 
     watchTogether() {
       if (S.numbers.watched === 'yes' || isNA('watch')) {
         return `<div class="gate clear"><h4>Skipped</h4>${S.callType === 'followup' ? 'Follow-up calls skip the video.' : 'They already watched the video.'} Nothing to do here.
-          <div style="margin-top:10px"><button class="btn primary" data-action="goto" data-value="questions">Go to "What questions came up?" →</button></div></div>`;
+          <div style="margin-top:10px"><button class="btn primary" data-action="scrollTo" data-value="questions">Go to "What questions came up?" →</button></div></div>`;
       }
       return `<div class="check-list">
         <button class="check-row ${S.numbers.videoPlayed === 'yes' ? 'done' : ''}" data-action="setNum" data-field="videoPlayed" data-value="${S.numbers.videoPlayed === 'yes' ? '' : 'yes'}">
           <span class="box">✓</span><span><span class="t">Play the video file (4–6 minutes)</span><span class="d">Mute yourself. Let it run. Don't narrate over it.</span></span></button>
       </div>
-      ${S.numbers.watched !== 'no' ? `<p class="tip-line" style="margin-top:10px">If they did watch it, mark "They watched it" in Stage 1 and this stage disappears from the checklist.</p>` : ''}`;
+      ${S.numbers.watched !== 'no' ? `<p class="tip-line" style="margin-top:10px">If they did watch it, mark "They watched it" above and this part disappears.</p>` : ''}`;
     },
 
     questionsList() {
@@ -395,7 +430,7 @@
               ${mDone
                 ? `<span class="pill say">${m.short} already covered</span>`
                 : `<button class="btn sm primary" data-action="teachMetric" data-value="${q.leadsTo}">Teach ${m.short} now → ${esc(m.label)}</button>`}
-              <span class="hint">Teaching it now checks ${m.short} off the list, then brings you back here.</span>
+              <span class="hint">Teaching it now checks ${m.short} off the ROI Bridge, then brings you back here.</span>
             </div>
           </div>` : ''}
         </div>`;
@@ -424,14 +459,14 @@
     metricStatus() {
       const left = metricsLeft();
       const doneList = METRICS.filter(m => isDone(m.id));
-      let html = `<div class="chips">${METRICS.map(m => `<button class="chip ${isDone(m.id) ? 'done' : ''}" data-action="goto" data-value="${m.id}"><span class="k">${m.short}</span>${esc(m.label)}${isDone(m.id) ? ' ✓' : ''}</button>`).join('')}</div>`;
+      let html = `<div class="chips">${METRICS.map(m => `<button class="chip ${isDone(m.id) ? 'done' : ''}" data-action="scrollTo" data-value="${m.id}"><span class="k">${m.short}</span>${esc(m.label)}${isDone(m.id) ? ' ✓' : ''}</button>`).join('')}</div>`;
       if (doneList.length && left.length) {
         html += `<div style="margin-top:14px">${sayBox('You already covered ' + doneList.map(m => m.short).join(' & ') + ' during their questions — bridge like this',
           `"We actually touched on ${doneList.map(m => m.label.toLowerCase()).join(' and ')} already when you asked about it. Let me tie it together with the one we haven't covered — ${left[0].label.toLowerCase()}."`)}</div>`;
       }
       html += `<div class="stage-actions">`;
       if (left.length) {
-        html += `<button class="btn primary" data-action="startMetric" data-value="${left[0].id}">${doneList.length ? 'Continue with ' : 'Start with '}${left[0].short} → ${esc(left[0].label)}</button>`;
+        html += `<button class="btn primary" data-action="scrollTo" data-value="${left[0].id}">${doneList.length ? 'Continue with ' : 'Start with '}${left[0].short} → ${esc(left[0].label)} ↓</button>`;
       } else {
         html += `<span class="pill say">All three metrics covered</span><button class="btn primary" data-action="bridgeDone">Show them the money →</button>`;
       }
@@ -443,7 +478,7 @@
       const r = roi();
       return `<div class="math"><div class="block-label"><span class="pill ask">If missed calls matter to them — run it right here</span></div>
         ${sayBox('Say this', `"You mentioned earlier your average order value is {{aov}} — let's call it {{conservative}} to be conservative. We just talked about one of our features, the Missed Call Text-Back. Now if all we did was save you one missed call every 2 weeks, that's {{monthly}} a month — you would still be {{multiple}} on a $297 investment. That doesn't include the smart website we build for you, the leads we capture, or the reviews we help you get. Can you see how easy it is to understand ROI?"`)}
-        <p class="tip-line" style="margin-top:10px">Stage 8 repeats this math with the full sequence. ${r.low ? 'Ticket is under $150 — Stage 8 swaps in the category range.' : ''}</p></div>`;
+        <p class="tip-line" style="margin-top:10px">The Money repeats this math with the full sequence. ${r.low ? 'Ticket is under $150 — The Money swaps in the category range.' : ''}</p></div>`;
     },
 
     dismissChannel() {
@@ -553,7 +588,7 @@
     },
 
     paymentChecklist() {
-      const offerLabel = { three: '3-Month Special — ' + money(P.monthly * 3 + P.listingSpecial) + ' today', monthly_listing: 'Monthly + Listing — ' + money(P.monthly + P.listing) + ' today', monthly: 'Monthly — ' + money(P.monthly) + '/mo', downsell: 'Downsell — ' + money(P.monthly) + ' today, special grandfathered' }[S.offer] || 'No offer selected yet — pick one in Stage 10';
+      const offerLabel = { three: '3-Month Special — ' + money(P.monthly * 3 + P.listingSpecial) + ' today', monthly_listing: 'Monthly + Listing — ' + money(P.monthly + P.listing) + ' today', monthly: 'Monthly — ' + money(P.monthly) + '/mo', downsell: 'Downsell — ' + money(P.monthly) + ' today, special grandfathered' }[S.offer] || 'No offer selected yet — pick one above';
       const rows = [
         { id: 'plan', t: 'Plan confirmed out loud', d: offerLabel },
         { id: 'card', t: 'Card collected and payment run', d: 'Stay on the line until it goes through. Silence is fine.' },
@@ -610,7 +645,7 @@
       if (S.outcome === 'closed') {
         const offerLabel = { three: '3-Month Special', monthly_listing: 'Monthly + Listing', monthly: 'Monthly', downsell: 'Monthly (downsell, special grandfathered)' }[S.offer] || 'not set';
         html += `<div class="rule-box" style="margin-top:14px"><h4>Closed</h4>Plan: <strong style="color:var(--green)">${esc(offerLabel)}</strong> · Onboarding: <strong style="color:var(--green)">${esc(S.numbers.onboardingSlot || 'not booked')}</strong>
-          ${!S.offer || !S.numbers.onboardingSlot ? '<p class="ghl-note">Go back to Stages 10–11 to set the plan and the onboarding slot before you submit.</p>' : ''}</div>`;
+          ${!S.offer || !S.numbers.onboardingSlot ? '<p class="ghl-note">Go back to Closing to set the plan and the onboarding slot before you submit.</p>' : ''}</div>`;
       }
 
       html += `<h3 class="section-title"><span class="step-badge">STEP 1</span> Update opportunity stage in GHL</h3>
@@ -657,8 +692,8 @@
       contact: { name: S.prospect.name, email: S.prospect.email, phone: S.prospect.phone, shop: S.prospect.shop, city: S.prospect.city, trade: S.prospect.trade },
       call: {
         type: S.callType, startedAt: S.startedAtISO, durationSec: Math.round(totalElapsed()),
-        stageTimesSec: Object.fromEntries(Object.entries(S.stageTimes).map(([k, v]) => [k, Math.round(v)])),
-        stagesDone: ORDER.filter(isDone), earlyYes: S.earlyYes, decisionMaker: S.numbers.decisionMaker, otherDM: S.numbers.otherDM,
+        sectionTimesSec: Object.fromEntries(Object.entries(S.sectionTimes).map(([k, v]) => [k, Math.round(v)])),
+        sectionsDone: SECTIONS.filter(p => p.id !== 'post' && sectionDone(p)).map(p => p.id), stepsDone: ORDER.filter(isDone), earlyYes: S.earlyYes, decisionMaker: S.numbers.decisionMaker, otherDM: S.numbers.otherDM,
       },
       discovery: {
         multiShop: S.numbers.multiShop, watchedVideo: S.numbers.watched, hasWebsite: S.numbers.hasWebsite, leadsNow: S.numbers.leadsNow,
@@ -689,7 +724,7 @@
     lines.push(`  Reviews today: ${S.numbers.reviewProcess || '—'} · software: ${S.numbers.software || '—'} · running ads: ${yn(S.numbers.runningAds)}`);
     lines.push('');
     lines.push('COVERED');
-    lines.push('  ' + ORDER.filter(id => id !== 'postcall').map(id => `${isDone(id) ? '[x]' : isNA(id) ? '[-]' : '[ ]'} ${STAGES[id].title}`).join('\n  '));
+    lines.push('  ' + SECTIONS.filter(p => p.id !== 'post').map(p => `${sectionDone(p) ? '[x]' : '[ ]'} ${p.title}` + (p.id === 'bridge' ? ' (' + METRICS.map(m => `${m.short}${isDone(m.id) ? ' ✓' : ' ✗'}`).join(', ') + ')' : '')).join('\n  '));
     const asked = window.CC_QUESTIONS.filter(q => S.asked[q.id]).map(q => q.q);
     lines.push('');
     lines.push('QUESTIONS ASKED');
@@ -711,37 +746,56 @@
      Render — main stage
      ------------------------------------------------------------------ */
   function renderStage() {
-    const st = stageOf(S.stage);
-    const ph = phaseOf(S.stage);
-    const done = isDone(S.stage), na = isNA(S.stage);
-    const idx = ORDER.indexOf(S.stage);
-    const prev = idx > 0 ? ORDER[idx - 1] : null;
-    const isMetric = !!st.metric;
+    const sec = curSection();
+    const steps = sectionSteps(sec);
+    const done = sectionDone(sec);
+    const idx = SECTIONS.findIndex(p => p.id === sec.id);
+    const prev = idx > 0 ? SECTIONS[idx - 1] : null;
+    const multi = steps.length > 1;
 
     let head = `<div class="stage-head">
-      <div class="stage-kicker"><span>Phase ${ph.num} · ${ph.label}</span><span class="dot"></span><span>${st.num <= 11 ? 'Stage ' + st.num + ' of 11' : 'After the call'}</span><span class="dot"></span><span>${esc(st.time)}</span>
-        ${REQUIRED.includes(S.stage) ? '<span class="pill ask" style="margin-left:6px">Required before checkout</span>' : ''}
-        ${done ? '<span class="pill say" style="margin-left:6px">Done</span>' : ''}${na ? '<span class="pill neutral" style="margin-left:6px">Skipped</span>' : ''}</div>
-      <h1 class="stage-title">${esc(st.title)}</h1>
-      <p class="stage-goal"><strong style="color:var(--text)">Goal:</strong> ${esc(st.goal)}</p>
-      ${S.returnTo && isMetric ? `<div class="stage-actions"><span class="pill tip">Detour from "${esc(STAGES[S.returnTo].title)}"</span><span style="font-size:13px;color:var(--text-3)">Mark it covered and you'll land back there.</span></div>` : ''}
+      <div class="stage-kicker"><span>${sec.id === 'post' ? 'After the call' : 'Section ' + sec.num + ' of 5'}</span><span class="dot"></span><span>${esc(sec.time)}</span>
+        ${done ? '<span class="pill say" style="margin-left:6px">Done</span>' : ''}</div>
+      <h1 class="stage-title">${esc(sec.title)}</h1>
+      <p class="stage-goal"><strong style="color:var(--text)">Goal:</strong> ${esc(sec.goal)}</p>
+      ${S.returnTo && sec.id === 'bridge' ? `<div class="stage-actions"><span class="pill tip">Detour</span><span style="font-size:13px;color:var(--text-3)">Cover the metric they asked about, mark it covered, and you'll land back where you were.</span></div>` : ''}
     </div>`;
 
-    let body = renderBlocks(st.blocks);
+    let body = steps.map(id => {
+      const st = STAGES[id];
+      let partHead = '';
+      if (multi) {
+        const isMetric = !!st.metric;
+        partHead = `<div class="part-head">
+          <div class="part-kicker">${esc(st.part || '')}${st.time ? ` <span class="dot"></span> ${esc(st.time)}` : ''}</div>
+          <h2 class="part-title">${esc(st.title)}${isMetric && isDone(id) ? ' <span class="pill say">Covered</span>' : ''}</h2>
+          ${st.goal ? `<p class="part-goal">${esc(st.goal)}</p>` : ''}
+        </div>`;
+      }
+      let partFoot = '';
+      if (st.metric) {
+        partFoot = `<div class="part-foot">
+          ${isDone(id)
+            ? `<button class="btn ghost sm" data-action="toggleDone" data-value="${id}">Un-mark ${esc(st.part)}</button>`
+            : `<button class="btn success" data-action="metricCovered" data-value="${id}">✓ ${esc(st.part)} covered${S.returnTo ? ' → back to ' + esc(sectionById(S.returnTo.section).title) : ''}</button>`}
+        </div>`;
+      }
+      return `<section class="part ${st.metric && isDone(id) ? 'covered' : ''}" id="step-${id}">${partHead}${renderBlocks(st.blocks)}${partFoot}</section>`;
+    }).join('');
 
     let nav = `<div class="stage-nav">
-      ${prev ? `<button class="btn ghost" data-action="goto" data-value="${prev}">← ${esc(STAGES[prev].title)}</button>` : '<span></span>'}
+      ${prev ? `<button class="btn ghost" data-action="goto" data-value="${prev.id}">← ${esc(prev.title)}</button>` : '<span></span>'}
       <span class="spacer"></span>`;
-    if (S.stage === 'postcall') {
+    const nxt = nextSection(sec.id);
+    if (sec.id === 'post') {
       nav += `<button class="btn ghost" data-action="newCall">Start a new call</button>`;
-    } else if (isMetric && S.returnTo) {
-      nav += `<button class="btn success" data-action="complete">✓ ${esc(METRICS.find(m => m.id === S.stage).short)} covered → back to ${esc(STAGES[S.returnTo].title)}</button>`;
-    } else if (S.stage === 'watch' && (S.numbers.watched === 'yes' || na)) {
-      nav += `<button class="btn primary" data-action="skipWatch">Skip → What questions came up?</button>`;
+    } else if (sec.id === 'bridge' && metricsLeft().length) {
+      const left = metricsLeft();
+      nav += `<button class="btn ghost" data-action="goto" data-value="money">Skip to the money anyway</button>
+        <button class="btn primary" data-action="scrollTo" data-value="${left[0].id}">Still owed: ${left.map(m => m.short).join(', ')} ↑</button>`;
     } else {
-      const nxt = nextUndone(S.stage);
-      nav += `${done ? '' : `<button class="btn ghost" data-action="toggleDone" data-value="${S.stage}">Mark done only</button>`}
-        <button class="btn primary" data-action="complete">${done ? 'Next' : '✓ Done'} → ${esc(STAGES[nxt].title)}</button>`;
+      nav += `${done ? '' : `<button class="btn ghost" data-action="toggleSection" data-value="${sec.id}">Mark done only</button>`}
+        <button class="btn primary" data-action="complete">${done ? 'Next' : '✓ Done'} → ${esc(sectionById(nxt).title)}</button>`;
     }
     nav += `</div>`;
 
@@ -756,9 +810,20 @@
     if (!S.drawer) { d.innerHTML = ''; return; }
     const tab = S.drawerTab;
     let inner = `<div class="drawer-inner">
-      <div class="drawer-head"><h3>${tab === 'notes' ? '📝 Call notes' : 'Prospect + numbers'}</h3><button class="btn sm ghost" data-action="drawerClose">✕</button></div>
-      <div class="drawer-tabs"><button class="btn sm ${tab === 'numbers' ? 'active' : ''}" data-action="drawer" data-value="numbers">Numbers</button><button class="btn sm ${tab === 'notes' ? 'active' : ''}" data-action="drawer" data-value="notes">Notes</button></div>`;
-    if (tab === 'notes') {
+      <div class="drawer-head"><h3>${tab === 'notes' ? '📝 Call notes' : tab === 'objections' ? 'Objection came up' : 'Prospect + numbers'}</h3><button class="btn sm ghost" data-action="drawerClose">✕</button></div>
+      <div class="drawer-tabs"><button class="btn sm ${tab === 'numbers' ? 'active' : ''}" data-action="drawer" data-value="numbers">Numbers</button><button class="btn sm ${tab === 'notes' ? 'active' : ''}" data-action="drawer" data-value="notes">Notes</button><button class="btn sm ${tab === 'objections' ? 'active' : ''}" data-action="drawer" data-value="objections">Objections</button></div>`;
+    if (tab === 'objections') {
+      const back = nextLineSection();
+      inner += `<div class="rule-box" style="margin-bottom:12px"><h4>The rule</h4>Answer one level deeper than asked. Then fall back to the straight line: <strong style="color:var(--accent)">${esc(sectionById(back).title)}</strong> is the next thing that isn't done.
+        <div style="margin-top:10px"><button class="btn sm primary" data-action="backToLine">Back to the line → ${esc(sectionById(back).title)}</button></div></div>`;
+      inner += window.CC_QUESTIONS.map(q => {
+        const m = METRICS.find(x => x.id === q.leadsTo);
+        return acc('obj-' + q.id, q.q, renderBlocks(q.answer) +
+          `<div class="q-actions" style="margin-top:10px">${isDone(q.leadsTo) ? `<span class="pill say">${m.short} covered</span>` : `<button class="btn sm primary" data-action="teachMetricFromHere" data-value="${q.leadsTo}">Teach ${m.short} now →</button>`}
+           <button class="btn sm ${S.asked[q.id] ? 'active' : ''}" data-action="toggleAskedQuiet" data-value="${q.id}">${S.asked[q.id] ? '✓ Logged' : 'Log it'}</button></div>`);
+      }).join('');
+      inner += `<p class="ghl-note" style="margin-top:10px">Money objections ("cash is tight", "why three months") live under The pushbacks in Closing.</p>`;
+    } else if (tab === 'notes') {
       inner += `<textarea class="notes" data-notes placeholder="Anything you're noticing — objections, energy, specific things they said, red flags, next steps…">${esc(S.notes)}</textarea>
         <p class="ghl-note">Notes go into the call summary in Post-Call.</p>`;
     } else {
@@ -826,17 +891,18 @@
     switch (a) {
       case 'callType':
         S.callType = v; if (v === 'followup') { S.numbers.watched = ''; } save(); render(); break;
-      case 'phase': {
-        const ph = PHASES.find(p => p.id === v);
-        goto(ph.stages.find(id => !isDone(id) && !isNA(id)) || ph.stages[0]); break;
-      }
-      case 'goto': goto(v, { returnTo: STAGES[v].metric ? S.returnTo : null }); break;
+      case 'goto': goto(v, { returnTo: (STAGES[v] && STAGES[v].metric) ? S.returnTo : null }); break;
+      case 'scrollTo': pendingAnchor = v; scrollToAnchor(); break;
+      case 'backToLine': S.returnTo = null; S.drawer = null; goto(nextLineSection()); break;
       case 'toggleDone':
         e.stopPropagation(); markDone(v);
         if (STAGES[v].metric && S.done[v] && metricsLeft().length === 0) S.done.bridge = true;
         save(); render(); break;
+      case 'toggleSection': {
+        e.stopPropagation(); const sec = sectionById(v); markSectionDone(sec, !sectionDone(sec)); render(); break;
+      }
+      case 'metricCovered': metricCovered(v); break;
       case 'complete': completeAndAdvance(); break;
-      case 'skipWatch': S.na.watch = true; delete S.done.watch; save(); goto('questions'); break;
       case 'watched':
         S.numbers.watched = v;
         if (v === 'yes') { S.na.watch = true; delete S.done.watch; } else { delete S.na.watch; }
@@ -849,13 +915,15 @@
         if (e.target.closest('[data-action="toggleAsked"]')) return; // inner check handled below
         S.openQ = S.openQ === v ? null : v; save(); render(); break;
       case 'toggleAsked': e.stopPropagation(); S.asked[v] = !S.asked[v]; if (S.asked[v] && S.openQ !== v) S.openQ = v; save(); render(); break;
-      case 'teachMetric': S.asked[S.openQ] = true; goto(v, { returnTo: 'questions' }); break;
-      case 'startMetric': goto(v, { returnTo: null }); break;
+      case 'teachMetric': S.asked[S.openQ] = true; goto(v, { returnTo: { section: 'discovery', anchor: 'questions' } }); break;
+      case 'teachMetricFromHere': {
+        const from = S.section === 'bridge' ? null : { section: S.section, anchor: null };
+        S.drawer = null; goto(v, { returnTo: from }); break;
+      }
+      case 'toggleAskedQuiet': S.asked[v] = !S.asked[v]; save(); render(); break;
       case 'earlyYes': S.earlyYes = !S.earlyYes; save(); render(); break;
       case 'questionsDone':
-        markDone('questions', true);
-        if (S.numbers.watched === 'yes' || S.callType === 'followup') S.na.watch = true;
-        markDone('intro', true); save();
+        markSectionDone(sectionById('discovery'), true);
         goto(metricsLeft().length ? 'bridge' : 'money'); break;
       case 'bridgeDone': markDone('bridge', true); goto('money'); break;
       case 'gmb': S.gmb[v] = !S.gmb[v]; save(); render(); break;
@@ -864,7 +932,7 @@
       case 'payment': S.payment[v] = !S.payment[v]; save(); render(); break;
       case 'outcome':
         S.outcome = v; const oc = window.CC_OUTCOMES.find(o => o.id === v); S.post.ghlStage = oc ? oc.ghlStage : '';
-        if (v === 'closed') { S.done.payment = true; S.done.checkout = true; }
+        if (v === 'closed') { markSectionDone(sectionById('closing'), true); }
         save(); render(); break;
       case 'acc': S.openAcc[v] = !S.openAcc[v]; save(); render(); break;
       case 'copy': copyText(S.prospect[v] || '', v + ' copied'); break;
@@ -913,11 +981,12 @@
     document.body.removeChild(ta);
   }
 
-  // Keyboard: N = notes, M = numbers, Space (outside inputs) = timer
+  // Keyboard: N = notes, M = numbers, O = objections, Space (outside inputs) = timer
   document.addEventListener('keydown', e => {
     if (e.target.matches('input, textarea, select')) return;
     if (e.key === 'n' || e.key === 'N') { S.drawer = S.drawer && S.drawerTab === 'notes' ? null : true; S.drawerTab = 'notes'; save(); render(); }
     if (e.key === 'm' || e.key === 'M') { S.drawer = S.drawer && S.drawerTab === 'numbers' ? null : true; S.drawerTab = 'numbers'; save(); render(); }
+    if (e.key === 'o' || e.key === 'O') { S.drawer = S.drawer && S.drawerTab === 'objections' ? null : true; S.drawerTab = 'objections'; save(); render(); }
     if (e.key === ' ') { e.preventDefault(); S.timer.running ? timerPause() : timerStart(); }
   });
 

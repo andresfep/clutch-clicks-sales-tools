@@ -18,13 +18,32 @@ window.CC_PRICING = {
   threeMonthMonths: 3,
 };
 
-window.CC_PHASES = [
-  { id: 'open',   num: '1', label: 'OPEN',            time: '0 – 12 min',  stages: ['intro', 'watch', 'questions'] },
-  { id: 'teach',  num: '2', label: 'ROI BRIDGE',      time: '12 – 19 min', stages: ['bridge', 'm1', 'm2', 'm3'] },
-  { id: 'value',  num: '3', label: 'MONEY + LISTING', time: '19 – 26 min', stages: ['money', 'gmb'] },
-  { id: 'close',  num: '4', label: 'CLOSE',           time: '26 – 30 min', stages: ['checkout', 'payment'] },
-  { id: 'post',   num: '5', label: 'POST-CALL',       time: 'After',       stages: ['postcall'] },
+/* The five sections the rep sees. Each one renders as a single page;
+   `steps` are the SOP stages stacked inside it. */
+window.CC_SECTIONS = [
+  { id: 'discovery', num: 1, label: 'INTRO + DISCOVERY', title: 'Intro + Discovery', time: '0 – 12 min', target: 720,
+    goal: 'Confirm the video, gate the decision maker, set the path, and get every objection on the table while you still have time to handle it.',
+    steps: ['intro', 'watch', 'questions'] },
+  { id: 'bridge', num: 2, label: 'ROI BRIDGE', title: 'ROI Bridge', time: '12 – 19 min', target: 420,
+    goal: 'Teach them how they actually make money with us. All three metrics get covered — in whatever order the call takes you — before the money.',
+    steps: ['bridge', 'm1', 'm2', 'm3'] },
+  { id: 'money', num: 3, label: 'THE MONEY', title: 'The Money', time: '19 – 22 min', target: 240,
+    goal: 'Their ticket, cut in half, tied to the features. Must land before any price is on the table.',
+    steps: ['money'] },
+  { id: 'gmb', num: 4, label: 'THE GMB', title: 'Diagnose the GMB', time: '22 – 26 min', target: 240,
+    goal: 'Show them what\'s broken on their Google profile so the listing price makes sense in the close.',
+    steps: ['gmb'] },
+  { id: 'closing', num: 5, label: 'CLOSING', title: 'Closing', time: '26 – 30 min', target: 600,
+    goal: 'Four things, timeline, $297 and $500 stated plainly, the special, binary ask, card, onboarding booked.',
+    steps: ['checkout', 'payment'] },
+  { id: 'post', num: 6, label: 'POST-CALL', title: 'Post-Call', time: 'After', target: 0,
+    goal: 'Log what happened. This is what will sync to GoHighLevel.',
+    steps: ['postcall'] },
 ];
+
+/* The straight line. When an objection or question interrupts, answer it,
+   then fall back to the first section that isn't done yet. */
+window.CC_STRAIGHT_LINE = ['discovery', 'bridge', 'money', 'gmb', 'closing'];
 
 /* Stages that MUST be checked off before the rep moves to checkout. */
 window.CC_CHECKOUT_REQUIRES = ['m1', 'm2', 'm3', 'money', 'gmb'];
@@ -37,7 +56,7 @@ window.CC_METRICS = [
   { id: 'm3', short: 'Metric 3', label: 'Reviews / reactivation' },
 ];
 
-/* The 6 most common questions from Stage 2. Each one ends with a bridge
+/* The 6 most common questions from the discovery stage. Each one ends with a bridge
    into a metric so the rep can teach it right there and check it off. */
 window.CC_QUESTIONS = [
   {
@@ -146,14 +165,14 @@ window.CC_FOUR_THINGS = [
 ];
 
 /* ------------------------------------------------------------------
-   STAGES — the 11-step straight line, plus post-call.
+   STEPS — the SOP stages, stacked inside the five sections above.
    `blocks` are rendered top to bottom. Block types:
      say | ask | stop | tip | warn | rule | capture | widget | cond
    ------------------------------------------------------------------ */
 window.CC_STAGES = {
 
   intro: {
-    id: 'intro', num: 1, title: 'Intro + Video Check', time: '1–2 min', target: 120,
+    id: 'intro', part: 'A', title: 'Intro + Video Check', time: '1–2 min', target: 120,
     goal: 'Confirm they watched the video, gate the decision maker, and set the path for the call.',
     blocks: [
       { type: 'cond', when: s => s.callType === 'initial', blocks: [
@@ -177,7 +196,7 @@ window.CC_STAGES = {
   },
 
   watch: {
-    id: 'watch', num: 2, title: 'Watch Together — if needed', time: '4 min', target: 300,
+    id: 'watch', part: 'B', title: 'Watch Together — if needed', time: '4 min', target: 300,
     goal: 'Only if they did not watch the video. Play the file, then check in.',
     blocks: [
       { type: 'widget', id: 'watchTogether' },
@@ -187,7 +206,7 @@ window.CC_STAGES = {
   },
 
   questions: {
-    id: 'questions', num: 3, title: '"What Questions Came Up?"', time: '5–10 min', target: 600,
+    id: 'questions', part: 'C', title: '"What Questions Came Up?"', time: '5–10 min', target: 600,
     goal: 'Get every objection on the table now, while you have time to handle it.',
     blocks: [
       { type: 'cond', when: s => s.callType === 'initial', blocks: [
@@ -208,7 +227,7 @@ window.CC_STAGES = {
   },
 
   bridge: {
-    id: 'bridge', num: 4, title: 'ROI Bridge', time: '3–5 min', target: 240,
+    id: 'bridge', part: 'The transition', title: 'Open the Bridge', time: '3–5 min', target: 240,
     goal: 'Teach them how they actually make money with us and discover their gaps at the same time. Discovery and education in one.',
     blocks: [
       { type: 'warn', text: 'This stage is completely absent from our underperforming calls. It is the single biggest gap in the process. Never skip it.' },
@@ -222,7 +241,7 @@ window.CC_STAGES = {
   },
 
   m1: {
-    id: 'm1', num: 5, title: 'Metric 1 — Leads Captured', time: '2–3 min', target: 180, metric: true,
+    id: 'm1', part: 'Metric 1', title: 'Metric 1 — Leads Captured', time: '2–3 min', target: 180, metric: true,
     goal: 'Show them they can\'t measure their leads today, and why a smart website fixes that.',
     blocks: [
       { type: 'say', label: 'Say this', text: '"The first is how many leads we\'re capturing from the traffic you\'re already getting. So let me ask you — do you know how many leads you\'re capturing from your website right now?"' },
@@ -253,14 +272,14 @@ window.CC_STAGES = {
   },
 
   m2: {
-    id: 'm2', num: 6, title: 'Metric 2 — Missed Calls Saved', time: '2–3 min', target: 180, metric: true,
+    id: 'm2', part: 'Metric 2', title: 'Metric 2 — Missed Calls Saved', time: '2–3 min', target: 180, metric: true,
     goal: 'Get their average ticket here. This number powers the money math later.',
     blocks: [
       { type: 'say', label: 'Say this', text: '"Second metric we track on a month-to-month basis — and why guys stay with us month over month and we don\'t do contracts — is we help them track how many missed calls we save them. Do you guys ever get any missed calls?"' },
       { type: 'stop', text: 'STOP. Wait for the answer.' },
       { type: 'capture', field: 'missedCalls', label: 'Do they get missed calls?', kind: 'choice', options: [['yes', 'Yes'], ['no', 'Says no / rarely']] },
       { type: 'say', text: '"Okay awesome. If I were to ask you, for anyone that walks through your doors today, what would you say your average ticket size is?"' },
-      { type: 'stop', text: 'They answer. Capture it — this is THE number for Stage 8.' },
+      { type: 'stop', text: 'They answer. Capture it — this is THE number for The Money.' },
       { type: 'capture', field: 'aov', label: 'Average ticket / order value ($)', kind: 'money' },
       { type: 'say', text: '"Okay well, most shops range from $500 to $5,000+, depending on the job you\'ve got to do. Naturally, if you miss a call what usually happens?"' },
       { type: 'stop', text: 'They answer: "It goes to voicemail" / "They call the next shop."' },
@@ -275,8 +294,8 @@ window.CC_STAGES = {
   },
 
   m3: {
-    id: 'm3', num: 7, title: 'Metric 3 — Reviews / Reactivation', time: '2 min', target: 120, metric: true,
-    goal: 'Name the metric, then move to the money. Do NOT diagnose the listing yet — Metric 3 is the hinge back to it in Stage 9.',
+    id: 'm3', part: 'Metric 3', title: 'Metric 3 — Reviews / Reactivation', time: '2 min', target: 120, metric: true,
+    goal: 'Name the metric, then move to the money. Do NOT diagnose the listing yet — Metric 3 is the hinge back to it in the GMB section.',
     blocks: [
       { type: 'say', label: 'Say this', text: '"Now when it comes down to the third metric we track every single month — and why guys stay with us month over month and we don\'t do contracts — the third metric is how many reviews we\'re able to get month over month. How are you getting reviews at the moment?"' },
       { type: 'stop', text: 'They answer.' },
@@ -286,12 +305,12 @@ window.CC_STAGES = {
       { type: 'say', text: '"When it comes down to ranking higher on Google, do you know one of the key factors for ranking higher?"' },
       { type: 'stop', text: 'They answer: "Yeah, it\'s reviews."' },
       { type: 'say', text: '"Yes, correct. One of the things Google looks at is reviews. However, Google doesn\'t care if you have 500 Google reviews. Google wants to see consistent reviews week over week. And our system helps you automatically do that without having to reach out to your clients yourself — as well as outrank your competitors along the way. Does that make sense?"' },
-      { type: 'warn', text: 'Don\'t pull up the listing yet. Name the metric, go to the money. You\'ll come back to the listing in Stage 9.' },
+      { type: 'warn', text: 'Don\'t pull up the listing yet. Name the metric, go to the money. You\'ll come back to the listing in the GMB section.' },
     ],
   },
 
   money: {
-    id: 'money', num: 8, title: 'Show Them the Money — The ROI Sequence', time: '3–5 min', target: 240,
+    id: 'money', title: 'Show Them the Money — The ROI Sequence', time: '3–5 min', target: 240,
     goal: 'Their ticket, cut in half, tied to the features. Must land BEFORE any price is on the table.',
     blocks: [
       { type: 'widget', id: 'moneyMath' },
@@ -303,7 +322,7 @@ window.CC_STAGES = {
   },
 
   gmb: {
-    id: 'gmb', num: 9, title: 'Diagnose the GMB + Prime the Upsell', time: '3–5 min', target: 240,
+    id: 'gmb', title: 'Diagnose the GMB + Prime the Upsell', time: '3–5 min', target: 240,
     goal: 'Show them what\'s broken on their Google profile, then price the fix immediately in the close.',
     blocks: [
       { type: 'say', label: 'The transition — call back to Metric 3', text: '"So that third metric I mentioned — reviews. Let\'s actually pull up your listing, because I noticed two or three things right off the bat that could help you rank higher."' },
@@ -321,7 +340,7 @@ window.CC_STAGES = {
   },
 
   checkout: {
-    id: 'checkout', num: 10, title: 'Transition to Checkout — The Close', time: '3–5 min', target: 240,
+    id: 'checkout', part: 'A', title: 'Transition to Checkout', time: '3–5 min', target: 240,
     goal: 'Recap, binary ask, card. Four things first, then $297 and $500 stated plainly, then the special.',
     blocks: [
       { type: 'widget', id: 'checkoutGate' },
@@ -339,7 +358,7 @@ window.CC_STAGES = {
   },
 
   payment: {
-    id: 'payment', num: 11, title: 'Payment + Onboarding', time: '5–10 min', target: 600,
+    id: 'payment', part: 'B', title: 'Payment + Onboarding', time: '5–10 min', target: 600,
     goal: 'Collect the card, lock the onboarding call, set expectations. Nothing left to sell.',
     blocks: [
       { type: 'widget', id: 'paymentChecklist' },
@@ -349,7 +368,7 @@ window.CC_STAGES = {
   },
 
   postcall: {
-    id: 'postcall', num: 12, title: 'Post-Call — Next Steps', time: 'After the call', target: 0,
+    id: 'postcall', title: 'Post-Call — Next Steps', time: 'After the call', target: 0,
     goal: 'Log what happened. This is what will sync to GoHighLevel.',
     blocks: [
       { type: 'widget', id: 'postCall' },
