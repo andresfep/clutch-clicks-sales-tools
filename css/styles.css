@@ -465,6 +465,8 @@ p { margin: 0; }
 :root[data-theme="dark"] .switch { background: var(--line-2); }
 :root[data-theme="dark"] .switch.on { background: var(--red); }
 
+.side-build { margin: 14px 12px 0; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: right; }
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);

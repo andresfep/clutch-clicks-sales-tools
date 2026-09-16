@@ -8,6 +8,7 @@
 (function () {
   'use strict';
 
+  const BUILD = '7'; // bump with the ?v= in index.html on every release
   const LS_KEY = 'cc_growth_call_v1';
   const THEME_KEY = 'cc_theme'; // per-browser preference, survives "New call"
   const P = window.CC_PRICING;
@@ -324,7 +325,8 @@
     html += `<button class="side-theme" data-action="theme" role="switch" aria-checked="${dark}" title="Toggle dark mode (D)">
         <span class="ic">${dark ? '☾' : '☀'}</span>
         <span class="tx">Dark mode<small>${dark ? 'On — navy #0d1425' : 'Off — light'}</small></span>
-        <span class="switch ${dark ? 'on' : ''}"></span></button>`;
+        <span class="switch ${dark ? 'on' : ''}"></span></button>
+      <div class="side-build">Build ${BUILD}</div>`;
     $('#sidebar').innerHTML = html;
   }
   function shortTitle(id) {
@@ -1007,4 +1009,5 @@
   });
 
   render();
+  try { console.info('Clutch Clicks call script — build ' + BUILD); } catch (e) { /* ignore */ }
 })();

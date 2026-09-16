@@ -1,0 +1,4 @@
+# Cloudflare Pages headers — always revalidate so new deploys show up on refresh.
+/*
+  Cache-Control: no-cache
+  X-Build: 7
