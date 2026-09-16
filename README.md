@@ -52,7 +52,10 @@ three GMB findings in order, the four onboarding things, the offer picker (3-mon
 monthly + listing, monthly, downsell) and the four pushback scripts.
 
 **Timer.** Overall clock plus time in the current section against its target. Space bar toggles
-it when no input is focused. `N` opens notes, `M` numbers, `O` objections.
+it when no input is focused. `N` opens notes, `M` numbers, `O` objections, `D` dark mode.
+
+**Dark mode.** Switch at the bottom of the sidebar. Built on the logo navy `#0d1425` with the
+same red; the choice is remembered per browser and is not cleared by "New call".
 
 **Post-call.** Outcome (closed, follow-up, not interested, no-show), follow-up sub-options
 (send recap yes/no, follow-up time, special grandfathered), the GHL pipeline stage, a copyable
@@ -67,7 +70,7 @@ Everything autosaves to the browser (`localStorage`), so a refresh mid-call lose
 | --- | --- |
 | `index.html` | Page shell |
 | `css/styles.css` | ClutchClicks brand system (Poppins, red/navy, pill buttons, cards), responsive layout |
-| `assets/logo.png` | Logo, pulled from the app mockup |
+| `assets/logo.png`, `assets/logo-dark.png` | Logo (light and dark backgrounds), pulled from the app mockup |
 | `js/script-content.js` | **All script copy and structure.** Edit this to change what reps say. |
 | `js/app.js` | State, section/checklist logic, detours, ROI math, timer, rendering |
 

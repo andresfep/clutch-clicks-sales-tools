@@ -11,11 +11,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="icon" href="assets/logo.png" />
   <link rel="stylesheet" href="css/styles.css" />
+  <script>
+    /* Apply the saved theme before first paint so there is no flash. */
+    try { var t = localStorage.getItem('cc_theme'); if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark'); } catch (e) {}
+  </script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <img src="assets/logo.png" alt="ClutchClicks" />
+      <img class="logo-light" src="assets/logo.png" alt="ClutchClicks" />
+      <img class="logo-dark" src="assets/logo-dark.png" alt="ClutchClicks" />
       <span class="brand-sub">Growth Plan Call</span>
     </div>
 

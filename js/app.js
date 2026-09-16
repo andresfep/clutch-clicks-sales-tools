@@ -9,6 +9,7 @@
   'use strict';
 
   const LS_KEY = 'cc_growth_call_v1';
+  const THEME_KEY = 'cc_theme'; // per-browser preference, survives "New call"
   const P = window.CC_PRICING;
   const STAGES = window.CC_STAGES;
   const SECTIONS = window.CC_SECTIONS;
@@ -99,6 +100,14 @@
   function toast(msg) {
     const t = $('#toast'); t.textContent = msg; t.classList.add('show');
     clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  /* Theme — light (default) or dark, kept outside call state. */
+  function theme() { try { return localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light'; } catch (e) { return 'light'; } }
+  function setTheme(t) {
+    try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* private mode */ }
+    if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
   }
 
   /* Field values used by {{templates}} */
@@ -311,6 +320,11 @@
       <div class="side-line"><h4>Objection came up?</h4>Answer it, then fall back to the straight line — the first section that isn't done yet.
         <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-action="drawer" data-value="objections">Open objections</button>
         <button class="btn sm ghost" data-action="backToLine">Back to the line →</button></div></div>`;
+    const dark = theme() === 'dark';
+    html += `<button class="side-theme" data-action="theme" role="switch" aria-checked="${dark}" title="Toggle dark mode (D)">
+        <span class="ic">${dark ? '☾' : '☀'}</span>
+        <span class="tx">Dark mode<small>${dark ? 'On — navy #0d1425' : 'Off — light'}</small></span>
+        <span class="switch ${dark ? 'on' : ''}"></span></button>`;
     $('#sidebar').innerHTML = html;
   }
   function shortTitle(id) {
@@ -943,6 +957,7 @@
         if (S.drawer && S.drawerTab === v) { S.drawer = null; } else { S.drawer = true; S.drawerTab = v; }
         save(); render(); break;
       case 'drawerClose': S.drawer = null; save(); render(); break;
+      case 'theme': setTheme(theme() === 'dark' ? 'light' : 'dark'); renderSidebar(); break;
       case 'newCall':
         if (confirm('Start a new call? This clears the checklist, numbers, notes and timer.')) {
           const keepType = S.callType; S = DEFAULT(); S.callType = keepType; save(); render();
@@ -981,11 +996,12 @@
     document.body.removeChild(ta);
   }
 
-  // Keyboard: N = notes, M = numbers, O = objections, Space (outside inputs) = timer
+  // Keyboard: N = notes, M = numbers, O = objections, D = dark mode, Space (outside inputs) = timer
   document.addEventListener('keydown', e => {
     if (e.target.matches('input, textarea, select')) return;
     if (e.key === 'n' || e.key === 'N') { S.drawer = S.drawer && S.drawerTab === 'notes' ? null : true; S.drawerTab = 'notes'; save(); render(); }
     if (e.key === 'm' || e.key === 'M') { S.drawer = S.drawer && S.drawerTab === 'numbers' ? null : true; S.drawerTab = 'numbers'; save(); render(); }
+    if (e.key === 'd' || e.key === 'D') { setTheme(theme() === 'dark' ? 'light' : 'dark'); renderSidebar(); }
     if (e.key === 'o' || e.key === 'O') { S.drawer = S.drawer && S.drawerTab === 'objections' ? null : true; S.drawerTab = 'objections'; save(); render(); }
     if (e.key === ' ') { e.preventDefault(); S.timer.running ? timerPause() : timerStart(); }
   });
